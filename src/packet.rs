@@ -34,8 +34,8 @@ impl Packet {
         }
     }
 
-    pub fn into_raw(self) -> *mut Packet {
-        Box::new(self).into_raw()
+    pub fn into_mut_ptr(self) -> *mut Packet {
+        Box::into_raw(Box::new(self))
     }
 
     pub fn from_raw(p: *mut Packet) -> Box<Packet> {
@@ -67,6 +67,10 @@ mod tests {
     use super::*;
     #[test]
     fn test_into_raw() {
-        let packet = Packet::new(std::time::UNIX_EPOCH, vec![0; 4]);
+        let packet = Packet::new(std::time::UNIX_EPOCH, vec![0u8, 1u8, 2u8, 3u8]);
+        let raw = packet.into_mut_ptr();
+        let rt = Packet::from_raw(raw);
+
+        assert_eq!(rt.data(), &[0u8, 1u8, 2u8, 3u8]);
     }
 }

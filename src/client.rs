@@ -62,13 +62,99 @@ impl Client {
 mod tests {
     use super::*;
 
+    use ipc_channel::ipc::{
+        IpcOneShotServer,
+        IpcSender
+    };
+
     #[test]
     fn test_connect_to_server() {
+        let (server, server_name) = IpcOneShotServer::new().expect("Failed to create server");
 
+        let server_result = std::thread::spawn(move || {
+            let (_, tx): (_, IpcSender<Option<Vec<Packet>>>) = server.accept().map_err(|_| {
+                Error::from_kind(ErrorKind::IpcFailure)
+            }).expect("No connection accepted");
+        });
+
+        let client = Client::new(server_name).expect("Failed to connect");
+
+        server_result.join().expect("Thread failed to join");
     }
 
     #[test]
     fn test_packet_receive() {
+        let (server, server_name) = IpcOneShotServer::new().expect("Failed to create server");
 
+        let server_result = std::thread::spawn(move || {
+            let (_, tx): (_, IpcSender<Option<Vec<Packet>>>) = server.accept().map_err(|_| {
+                Error::from_kind(ErrorKind::IpcFailure)
+            }).expect("No connection accepted");
+
+            tx.send(Some(vec![Packet::new(std::time::UNIX_EPOCH, vec![3u8])]));
+
+            tx.send(None);
+        });
+
+        let mut client = Client::new(server_name).expect("Failed to connect");
+
+        let packets = client.receive_packets(1)
+            .expect("Failed to get packets")
+            .expect("No packets provided");
+
+        assert_eq!(packets.len(), 1);
+
+        assert_eq!(packets[0].data()[0], 3u8);
+
+        assert!(client.receive_packets(1).expect("Failed to get packets").is_none());
+
+        server_result.join().expect("Thread failed to join");
+    }
+
+    #[test]
+    fn test_multiple_packet_receive() {
+        let term = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let term_clone = std::sync::Arc::clone(&term);
+        let (server, server_name) = IpcOneShotServer::new().expect("Failed to create server");
+
+        let server_result = std::thread::spawn(move || {
+            let (_, tx): (_, IpcSender<Option<Vec<Packet>>>) = server.accept().map_err(|_| {
+                Error::from_kind(ErrorKind::IpcFailure)
+            }).expect("No connectoin accepted");
+
+            tx.send(Some(vec![Packet::new(std::time::UNIX_EPOCH, vec![0u8])]));
+
+            while !term_clone.load(std::sync::atomic::Ordering::Relaxed) {
+                std::thread::sleep(std::time::Duration::from_secs(1));
+            }
+
+            tx.send(Some(vec![Packet::new(std::time::UNIX_EPOCH, vec![1u8])]));
+
+            tx.send(None);
+        });
+
+        let mut client = Client::new(server_name).expect("Failed to connect");
+
+        let packets = client.receive_packets(1)
+            .expect("Failed to get packets")
+            .expect("No packets provided");
+
+        assert_eq!(packets.len(), 1);
+
+        assert_eq!(packets[0].data()[0], 0u8);
+
+        term.store(true, std::sync::atomic::Ordering::Relaxed);
+
+        let packets2 = client.receive_packets(1)
+            .expect("Failed to get packets")
+            .expect("No packets provided");
+
+        assert_eq!(packets2.len(), 1);
+
+        assert_eq!(packets2[0].data()[0], 1u8);
+
+        assert!(client.receive_packets(1).expect("Failed to get packets").is_none());
+
+        server_result.join().expect("Thread failed to join");
     }
 }

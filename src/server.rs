@@ -1,155 +1,77 @@
-use crate::errors::{
-    Error,
-    ErrorKind
-};
+use crate::errors::Error;
 
-use crate::packet::{
-    AsIpcPacket,
-    Packet
-};
+use crate::packet::Packet;
 
-use futures::{
-    Async,
-    Future,
-    Poll,
-    Stream
-};
-use ipc_channel::ipc::{
-    IpcOneShotServer,
-    IpcSender
-};
+use futures::Poll;
+use ipc_channel::ipc::{IpcOneShotServer, IpcSender};
 use log::*;
+use std::pin::Pin;
+use std::task::LocalWaker;
 
 pub struct Server {
     server: IpcOneShotServer<IpcSender<Option<Vec<Packet>>>>,
-    name: String
+    name: String,
 }
 
 impl Server {
-    pub fn name(&self) -> &String { &self.name }
+    pub fn name(&self) -> &String {
+        &self.name
+    }
 
     pub fn new() -> Result<Server, Error> {
-        let (server, server_name) = IpcOneShotServer::new()?;
+        let (server, server_name) = IpcOneShotServer::new().map_err(Error::Io)?;
 
         Ok(Server {
             server: server,
-            name: server_name
+            name: server_name,
         })
     }
 
-    pub fn accept(self) -> impl Future<Item=ConnectedIpc, Error=Error> {
-        futures::lazy(|| {
-            let (_, tx): (_, IpcSender<Option<Vec<Packet>>>) = self.server.accept().map_err(|_| {
-                Error::from_kind(ErrorKind::IpcFailure)
-            })?;
+    pub async fn accept(self) -> Result<ConnectedIpc, Error> {
+        let (_, tx): (_, IpcSender<Option<Vec<Packet>>>) =
+            self.server.accept().map_err(Error::Bincode)?;
 
-            info!("Accepted connection from {:?}", tx);
+        info!("Accepted connection from {:?}", tx);
 
-            Ok(ConnectedIpc {
-                connection: tx
-            })
-        })
+        Ok(ConnectedIpc { connection: tx })
     }
 }
 
 pub struct ConnectedIpc {
-    connection: IpcSender<Option<Vec<Packet>>>
+    connection: IpcSender<Option<Vec<Packet>>>,
 }
 
-impl ConnectedIpc {
-    pub fn send(&mut self, packets: Vec<Packet>) -> Result<(), Error> {
-        self.connection.send(Some(packets)).map_err(|e| {
+impl futures::sink::Sink for ConnectedIpc {
+    type SinkItem = Vec<Packet>;
+    type SinkError = Error;
+
+    fn poll_ready(self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn start_send(self: Pin<&mut Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+        self.get_mut().connection.send(Some(item)).map_err(|e| {
             error!("Failed to send {:?}", e);
-            Error::from_kind(ErrorKind::Bincode)
+            Error::Bincode(e)
         })
     }
 
-    pub fn close(&mut self) -> Result<(), Error> {
+    fn poll_flush(self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn poll_close(self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
         info!("Closing IPC Server");
-        self.connection.send(None).map_err(|_| {
-            Error::from_kind(ErrorKind::Bincode)
-        })
+        Poll::Ready(self.get_mut().connection.send(None).map_err(Error::Bincode))
     }
 }
-
-pub struct IpcTransfer<T> {
-    inner: T,
-    ipc: ConnectedIpc
-}
-
-impl<T> Stream for IpcTransfer<T>
-    where T: Stream,
-          T::Item: IntoIterator,
-          <<T as Stream>::Item as IntoIterator>::Item: AsIpcPacket,
-          T::Error: From<Error>
-{
-    type Item=Vec<<<T as Stream>::Item as IntoIterator>::Item>;
-    type Error=T::Error;
-
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        match self.inner.poll()? {
-            Async::NotReady => {
-                debug!("No packets to send to ipc");
-                Ok(Async::NotReady)
-            },
-            Async::Ready(None) => {
-                self.ipc.close().map_err(Self::Error::from)?;
-                Ok(Async::Ready(None))
-            }
-            Async::Ready(Some(packets)) => {
-                let iter = packets.into_iter();
-                let mut packets = vec![];
-                let to_send = iter.map(|p| {
-                    let ipc = p.as_ipc_packet();
-                    packets.push(p);
-                    ipc
-                }).collect();
-                self.ipc.send(to_send).map_err(Self::Error::from)?;
-                Ok(Async::Ready(Some(packets)))
-            }
-        }
-    }
-}
-
-pub trait WithIpcTransfer: Stream {
-    fn transfer_ipc(
-        self,
-        ipc: ConnectedIpc
-    ) -> IpcTransfer<Self>
-        where Self: Sized
-    {
-        IpcTransfer {
-            inner: self,
-            ipc: ipc
-        }
-    }
-}
-
-impl<T: ?Sized> WithIpcTransfer for T
-    where T: Stream
-{}
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    use futures::stream::Stream;
-    use ipc_channel::{
-        ipc::{
-            self,
-            IpcSender
-        }
-    };
-
-    struct TestPacket {
-        timestamp: std::time::SystemTime,
-        data: Vec<u8>
-    }
-
-    impl AsIpcPacket for TestPacket {
-        fn timestamp(&self) -> &std::time::SystemTime { &self.timestamp() }
-        fn data(&self) -> &[u8] { self.data().as_ref() }
-    }
+    use futures::{SinkExt, StreamExt};
+    use ipc_channel::ipc::{self, IpcSender};
 
     #[test]
     fn test_connection() {
@@ -159,16 +81,23 @@ mod tests {
 
         let future_accept = server.accept();
 
-        let (tx, rx) = ipc::channel::<Option<Vec<Packet>>>().expect("Failed to create channel");
-        let server_sender: IpcSender<IpcSender<Option<Vec<Packet>>>> = IpcSender::connect(server_name).expect("Server failed to connect");
+        let (tx, _rx) = ipc::channel::<Option<Vec<Packet>>>().expect("Failed to create channel");
+        let server_sender: IpcSender<IpcSender<Option<Vec<Packet>>>> =
+            IpcSender::connect(server_name).expect("Server failed to connect");
 
         let connected_thread = std::thread::spawn(move || {
-            future_accept.wait()
+            let f = async { await!(future_accept) };
+            futures::executor::block_on(f)
         });
 
-        server_sender.send(tx).expect("Failed to send client sender");
+        server_sender
+            .send(tx)
+            .expect("Failed to send client sender");
 
-        connected_thread.join().expect("No connection");
+        connected_thread
+            .join()
+            .expect("Failed to join")
+            .expect("No connection");
     }
 
     #[test]
@@ -180,15 +109,19 @@ mod tests {
         let future_accept = server.accept();
 
         let (tx, rx) = ipc::channel::<Option<Vec<Packet>>>().expect("Failed to create channel");
-        let server_sender: IpcSender<IpcSender<Option<Vec<Packet>>>> = IpcSender::connect(server_name).expect("Server failed to connect");
+        let server_sender: IpcSender<IpcSender<Option<Vec<Packet>>>> =
+            IpcSender::connect(server_name).expect("Server failed to connect");
 
         let connected_thread = std::thread::spawn(move || {
-            future_accept.wait().expect("No connection accepted")
+            let f = async { await!(future_accept) };
+            futures::executor::block_on(f).expect("Failed to accept")
         });
 
-        server_sender.send(tx).expect("Failed to send client sender");
+        server_sender
+            .send(tx)
+            .expect("Failed to send client sender");
 
-        let connection = connected_thread.join().expect("No connection");
+        let mut connection = connected_thread.join().expect("No connection");
 
         let client_result = std::thread::spawn(move || {
             let mut count = 0;
@@ -201,14 +134,19 @@ mod tests {
             count
         });
 
-        connection.send(vec![Packet::new(std::time::UNIX_EPOCH, vec![2u8])]);
-        connection.close();
+        let f = async {
+            await!(connection.send(vec![Packet::new(std::time::UNIX_EPOCH, vec![2u8])]))
+                .expect("Failed to send");
+            await!(connection.close()).expect("Failed to close");
+        };
+
+        futures::executor::block_on(f);
 
         assert_eq!(client_result.join().expect("Failed to receive"), 1);
     }
 
     #[test]
-    fn test_stream() {
+    fn test_sink() {
         let server = Server::new().expect("Failed to build server");
 
         let server_name = server.name().clone();
@@ -216,13 +154,17 @@ mod tests {
         let future_accept = server.accept();
 
         let (tx, rx) = ipc::channel::<Option<Vec<Packet>>>().expect("Failed to create channel");
-        let server_sender: IpcSender<IpcSender<Option<Vec<Packet>>>> = IpcSender::connect(server_name).expect("Server failed to connect");
+        let server_sender: IpcSender<IpcSender<Option<Vec<Packet>>>> =
+            IpcSender::connect(server_name).expect("Server failed to connect");
 
         let connected_thread = std::thread::spawn(move || {
-            future_accept.wait().expect("No connection accepted")
+            let f = async { await!(future_accept) };
+            futures::executor::block_on(f).expect("Failed to accept")
         });
 
-        server_sender.send(tx).expect("Failed to send client sender");
+        server_sender
+            .send(tx)
+            .expect("Failed to send client sender");
 
         let connection = connected_thread.join().expect("No connection");
 
@@ -237,19 +179,13 @@ mod tests {
             count
         });
 
-        let packets_sent = futures::stream::iter_ok(vec![
-            TestPacket {
-                timestamp: std::time::UNIX_EPOCH,
-                data: vec![0u8]
-            }
-                ])
-            .transfer_ipc(connection)
-            .collect()
-            .wait()
-            .expect("Failed to send");
+        let packets_sent_fut =
+            futures::stream::iter(vec![vec![Packet::new(std::time::UNIX_EPOCH, vec![0u8])]])
+                .map(|packets| Ok(packets))
+                .forward(connection);
+
+        futures::executor::block_on(packets_sent_fut).expect("Failed to run");
 
         assert_eq!(client_result.join().expect("Failed to receive"), 1);
-
     }
 }
-

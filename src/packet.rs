@@ -1,4 +1,5 @@
 use ipc_channel::ipc::IpcSharedMemory;
+use log::error;
 use serde_derive::{Deserialize, Serialize};
 
 #[repr(C)]
@@ -59,6 +60,14 @@ impl Default for Packet {
     }
 }
 
+impl Drop for Packet {
+    fn drop(&mut self) {
+        if std::thread::panicking() {
+            error!("Thread is currently panicking");
+        }
+    }
+}
+
 unsafe impl Send for Packet {}
 
 #[cfg(test)]
@@ -71,5 +80,7 @@ mod tests {
         let rt = Packet::from_raw(raw).expect("No packet");
 
         assert_eq!(rt.data(), &[0u8, 1u8, 2u8, 3u8]);
+
+        std::mem::drop(rt);
     }
 }

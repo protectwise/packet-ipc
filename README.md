@@ -12,7 +12,7 @@ Attempts to be as efficient as possible while still allowing packets to be used 
 A packet is defined for this library as any structure which implements `AsIpcPacket`.
 
 [travis-badge]: https://img.shields.io/travis/dbcfd/packet-ipc/master.svg?style=flat-square
-[travis-url]: https://travis-ci.org/dbcfd/packet-ipc.svg?branch=master
+[travis-url]: https://travis-ci.com/dbcfd/packet-ipc.svg?branch=master
 [crates-badge]: https://img.shields.io/crates/v/packet-ipc.svg?style=flat-square
 [crates-url]: https://crates.io/crates/packet-ipc
 [docs-badge]: https://img.shields.io/badge/docs.rs-latest-blue.svg?style=flat-square

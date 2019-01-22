@@ -1,10 +1,24 @@
 # packet-ipc
 
+[![build status][travis-badge]][travis-url]
+[![crates.io version][crates-badge]][crates-url]
+[![docs.rs docs][docs-badge]][docs-url]
+[![MIT licensed][mit-badge]][mit-url]
+
 Library to share packets between processes using [servo's ipc-channel](https://github.com/servo/ipc-channel).
 
 Attempts to be as efficient as possible while still allowing packets to be used with C FFI.
 
 A packet is defined for this library as any structure which implements `AsIpcPacket`.
+
+[travis-badge]: https://img.shields.io/travis/dbcfd/packet-ipc/master.svg?style=flat-square
+[travis-url]: https://travis-ci.org/dbcfd/packet-ipc
+[crates-badge]: https://img.shields.io/crates/v/packet-ipc.svg?style=flat-square
+[crates-url]: https://crates.io/crates/packet-ipc
+[docs-badge]: https://img.shields.io/badge/docs.rs-latest-blue.svg?style=flat-square
+[docs-url]: https://docs.rs/packet-ipc
+[mit-badge]: https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square
+[mit-url]: LICENSE-MIT
 
 ## Usage
 

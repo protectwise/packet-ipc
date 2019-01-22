@@ -13,8 +13,10 @@ readme = "README.md"
 description = """
 Share packets between services using servo ipc
 """
-authors = ["Danny Browning <bdbrowning2@gmail.com>", "Carl Lerche <me@carllerche.com>"]
+authors = ["Danny Browning <bdbrowning2@gmail.com>"]
 categories = ["asynchronous", "network-programming"]
+documentation = "https://docs.rs/packet-ipc/0.1.1/packet_ipc/"
+repository = "https://github.com/dbcfd/packet-ipc"
 
 [dependencies]
 bincode = "1.0"

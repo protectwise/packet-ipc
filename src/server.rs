@@ -6,7 +6,7 @@ use futures::Poll;
 use ipc_channel::ipc::{IpcOneShotServer, IpcSender};
 use log::*;
 use std::pin::Pin;
-use std::task::LocalWaker;
+use std::task::Waker;
 
 pub struct Server {
     server: IpcOneShotServer<IpcSender<Option<Vec<Packet>>>>,
@@ -45,7 +45,7 @@ impl futures::sink::Sink for ConnectedIpc {
     type SinkItem = Vec<Packet>;
     type SinkError = Error;
 
-    fn poll_ready(self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_ready(self: Pin<&mut Self>, _: &Waker) -> Poll<Result<(), Self::SinkError>> {
         Poll::Ready(Ok(()))
     }
 
@@ -56,11 +56,11 @@ impl futures::sink::Sink for ConnectedIpc {
         })
     }
 
-    fn poll_flush(self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_flush(self: Pin<&mut Self>, _: &Waker) -> Poll<Result<(), Self::SinkError>> {
         Poll::Ready(Ok(()))
     }
 
-    fn poll_close(self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_close(self: Pin<&mut Self>, _: &Waker) -> Poll<Result<(), Self::SinkError>> {
         info!("Closing IPC Server");
         Poll::Ready(self.get_mut().connection.send(None).map_err(Error::Bincode))
     }

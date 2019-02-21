@@ -7,7 +7,7 @@ edition = "2018"
 # - Update CHANGELOG.md.
 # - Update doc URL.
 # - Create "v0.1.x" git tag.
-version = "0.1.1"
+version = "0.1.2"
 license = "MIT"
 readme = "README.md"
 description = """
@@ -23,7 +23,7 @@ bincode = "1.0"
 crossbeam-channel = "0.3"
 failure = "0.1"
 failure_derive = "0.1"
-futures-preview = { version ="0.3.0-alpha.12", features = ["compat"] }
+futures-preview = { version ="0.3.0-alpha.13", features = ["compat"] }
 ipc-channel = "0.11"
 log = "0.4"
 serde = "1.0"

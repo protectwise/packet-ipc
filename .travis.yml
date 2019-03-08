@@ -1,7 +1,7 @@
 ---
 language: rust
 rust:
-    - nightly
+    - nightly-2019-03-01
 sudo: false
 cache:
   - apt

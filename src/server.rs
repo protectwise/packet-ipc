@@ -69,10 +69,9 @@ impl futures::sink::Sink for ConnectedIpc {
 mod tests {
     use super::*;
 
-    use crate::packet::Packet;
+    use crate::packet::{Packet, IpcPacket};
     use futures::{SinkExt, StreamExt};
     use ipc_channel::ipc::{self, IpcSender};
-    use std::sync::Arc;
 
     #[test]
     fn test_connection() {
@@ -136,7 +135,7 @@ mod tests {
         });
 
         let f = async {
-            await!(connection.send(vec![Arc::new(Packet::new(std::time::UNIX_EPOCH, vec![2u8]))]))
+            await!(connection.send(vec![IpcPacket::try_from(&Packet::new(std::time::SystemTime::now(), vec![2u8])).expect("Failed to serialize")]))
                 .expect("Failed to send");
             await!(connection.close()).expect("Failed to close");
         };
@@ -181,7 +180,7 @@ mod tests {
         });
 
         let packets_sent_fut =
-            futures::stream::iter(vec![vec![Arc::new(Packet::new(std::time::UNIX_EPOCH, vec![0u8]))]])
+            futures::stream::iter(vec![vec![IpcPacket::try_from(&Packet::new(std::time::SystemTime::now(), vec![2u8])).expect("Failed to serialize")]])
                 .map(|packets| Ok(packets))
                 .forward(connection);
 

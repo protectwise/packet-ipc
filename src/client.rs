@@ -1,5 +1,4 @@
 use crate::errors::Error;
-use crate::packet::Packet;
 use crate::IpcMessage;
 
 use crossbeam_channel::Receiver as CrossbeamReceiver;
@@ -7,7 +6,6 @@ use ipc_channel::{
     ipc::{self, IpcSender},
     router::ROUTER,
 };
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct Client {
@@ -22,7 +20,7 @@ impl Client {
         let server_sender = IpcSender::connect(server_name).map_err(Error::Io)?;
         server_sender.send(tx).map_err(Error::Bincode)?;
         let routed_rx =
-            ROUTER.route_ipc_receiver_to_new_crossbeam_receiver::<Option<Vec<Arc<Packet>>>>(rx);
+            ROUTER.route_ipc_receiver_to_new_crossbeam_receiver::<Option<IpcMessage>>(rx);
         Ok(Client {
             receiver: routed_rx,
             available: vec![],
@@ -66,6 +64,7 @@ mod tests {
     use super::*;
 
     use ipc_channel::ipc::{IpcOneShotServer, IpcSender};
+    use crate::packet::{AsIpcPacket, IpcPacket, Packet};
 
     #[test]
     fn test_connect_to_server() {
@@ -93,7 +92,7 @@ mod tests {
                 .map_err(Error::Bincode)
                 .expect("No connection accepted");
 
-            tx.send(Some(vec![Arc::new(Packet::new(std::time::UNIX_EPOCH, vec![3u8]))]))
+            tx.send(Some(vec![IpcPacket::try_from(&Packet::new(std::time::SystemTime::now(), vec![3u8])).expect("Failed to serialize")]))
                 .expect("Failed to send");
 
             tx.send(None).expect("Failed to send");
@@ -101,13 +100,14 @@ mod tests {
 
         let mut client = Client::new(server_name).expect("Failed to connect");
 
-        let packets = client
+        let mut packets = client
             .recv(1)
             .expect("Failed to get packets")
             .expect("No packets provided");
 
         assert_eq!(packets.len(), 1);
 
+        let packets: Vec<_> = packets.drain(..).map(|p| p.into_packet().expect("Could not convert to packet")).collect();
         assert_eq!(packets[0].data()[0], 3u8);
 
         let addl_packets = client.recv(1).expect("Failed to get packets");
@@ -129,14 +129,14 @@ mod tests {
                 .map_err(Error::Bincode)
                 .expect("No connection accepted");
 
-            tx.send(Some(vec![Arc::new(Packet::new(std::time::UNIX_EPOCH, vec![0u8]))]))
+            tx.send(Some(vec![IpcPacket::try_from(&Packet::new(std::time::SystemTime::now(), vec![0u8])).expect("Failed to serialize")]))
                 .expect("Failed to send");
 
             while !term_clone.load(std::sync::atomic::Ordering::Relaxed) {
                 std::thread::sleep(std::time::Duration::from_secs(1));
             }
 
-            tx.send(Some(vec![Arc::new(Packet::new(std::time::UNIX_EPOCH, vec![1u8]))]))
+            tx.send(Some(vec![IpcPacket::try_from(&Packet::new(std::time::SystemTime::now(), vec![1u8])).expect("Failed to serialize")]))
                 .expect("Failed to send");
 
             tx.send(None).expect("Failed to send");
@@ -144,24 +144,26 @@ mod tests {
 
         let mut client = Client::new(server_name).expect("Failed to connect");
 
-        let packets = client
+        let mut packets = client
             .recv(1)
             .expect("Failed to get packets")
             .expect("No packets provided");
 
         assert_eq!(packets.len(), 1);
 
+        let packets: Vec<_> = packets.drain(..).map(|p| p.into_packet().expect("Could not convert to packet")).collect();
         assert_eq!(packets[0].data()[0], 0u8);
 
         term.store(true, std::sync::atomic::Ordering::Relaxed);
 
-        let packets2 = client
+        let mut packets2 = client
             .recv(1)
             .expect("Failed to get packets")
             .expect("No packets provided");
 
         assert_eq!(packets2.len(), 1);
 
+        let packets2: Vec<_> = packets2.drain(..).map(|p| p.into_packet().expect("Could not convert to packet")).collect();
         assert_eq!(packets2[0].data()[0], 1u8);
 
         assert!(client

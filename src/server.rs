@@ -5,7 +5,7 @@ use futures::Poll;
 use ipc_channel::ipc::{IpcOneShotServer, IpcSender};
 use log::*;
 use std::pin::Pin;
-use std::task::Waker;
+use std::task::Context;
 
 pub struct Server {
     server: IpcOneShotServer<IpcSender<Option<IpcMessage>>>,
@@ -40,26 +40,25 @@ pub struct ConnectedIpc {
     connection: IpcSender<Option<IpcMessage>>,
 }
 
-impl futures::sink::Sink for ConnectedIpc {
-    type SinkItem = IpcMessage;
+impl futures::sink::Sink<IpcMessage> for ConnectedIpc {
     type SinkError = Error;
 
-    fn poll_ready(self: Pin<&mut Self>, _: &Waker) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_ready(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
         Poll::Ready(Ok(()))
     }
 
-    fn start_send(self: Pin<&mut Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+    fn start_send(self: Pin<&mut Self>, item: IpcMessage) -> Result<(), Self::SinkError> {
         self.get_mut().connection.send(Some(item)).map_err(|e| {
             error!("Failed to send {:?}", e);
             Error::Bincode(e)
         })
     }
 
-    fn poll_flush(self: Pin<&mut Self>, _: &Waker) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
         Poll::Ready(Ok(()))
     }
 
-    fn poll_close(self: Pin<&mut Self>, _: &Waker) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_close(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
         info!("Closing IPC Server");
         Poll::Ready(self.get_mut().connection.send(None).map_err(Error::Bincode))
     }

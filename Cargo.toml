@@ -5,7 +5,7 @@ edition = "2018"
 # When releasing to crates.io:
 # - Update doc URL.
 # - Create "vX.Y.Z" git tag.
-version = "0.6.0"
+version = "0.7.0"
 license = "MIT"
 readme = "README.md"
 description = """
@@ -13,7 +13,7 @@ Share packets between services using servo ipc
 """
 authors = ["Danny Browning <bdbrowning2@gmail.com>"]
 categories = ["asynchronous", "network-programming"]
-documentation = "https://docs.rs/packet-ipc/0.6.0/packet_ipc/"
+documentation = "https://docs.rs/packet-ipc/"
 repository = "https://github.com/dbcfd/packet-ipc"
 
 [dependencies]
@@ -21,7 +21,6 @@ bincode = "1"
 crossbeam-channel = "0.3"
 failure = "0.1"
 failure_derive = "0.1"
-futures-preview = { version ="0.3.0-alpha.14", features = ["compat"] }
 ipc-channel = "0.11"
 log = "0.4"
 serde = { version = "1.0", features = ["derive"] }

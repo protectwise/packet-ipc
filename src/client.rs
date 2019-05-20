@@ -28,7 +28,7 @@ impl Client {
         })
     }
 
-    fn take(&mut self, size: usize) -> IpcMessage {
+    pub fn take(&mut self, size: usize) -> IpcMessage {
         let packets_to_take = usize::min(size, self.available.len());
         let mut rem = self.available.split_off(packets_to_take);
         std::mem::swap(&mut self.available, &mut rem);

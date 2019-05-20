@@ -33,21 +33,19 @@ impl Server {
     }
 }
 
-#[allow(dead_code)]
 pub struct ConnectedIpc {
     connection: IpcSender<Option<IpcMessage>>,
 }
 
-#[allow(dead_code)]
 impl ConnectedIpc {
-    fn send(&mut self, v: IpcMessage) -> Result<(), Error> {
+    pub fn send(&mut self, v: IpcMessage) -> Result<(), Error> {
         self.connection.send(Some(v)).map_err(|e| {
             error!("Failed to send {:?}", e);
             Error::Bincode(e)
         })
     }
 
-    fn close(&mut self) -> Result<(), Error> {
+    pub fn close(&mut self) -> Result<(), Error> {
         self.connection.send(None).map_err(Error::Bincode)?;
         Ok(())
     }

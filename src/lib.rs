@@ -1,6 +1,9 @@
-pub mod client;
-pub mod errors;
-pub mod packet;
-pub mod server;
+mod client;
+mod errors;
+mod packet;
+mod server;
 
-type IpcMessage = Vec<packet::IpcPacket>;
+pub use client::Client;
+pub use errors::Error;
+pub use packet::{AsIpcPacket, IpcPacket, Packet};
+pub use server::Server;

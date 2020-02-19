@@ -6,4 +6,4 @@ mod server;
 pub use client::Client;
 pub use errors::Error;
 pub use packet::{AsIpcPacket, IpcPacket, Packet};
-pub use server::Server;
+pub use server::{ConnectedIpc, Server};

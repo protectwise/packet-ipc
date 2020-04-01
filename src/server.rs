@@ -40,7 +40,7 @@ pub struct ConnectedIpc<'a> {
 }
 
 impl<'a> ConnectedIpc<'a> {
-    pub fn send<T: AsIpcPacket>(&'a self, packets: &'a Vec<T>) -> Result<(), Error> {
+    pub fn send<T: AsIpcPacket>(&'a self, packets: &'a [T]) -> Result<(), Error> {
         let ipc_packets: Vec<_> = packets.iter().map(IpcPacket::from).collect();
         self.connection.send(Some(ipc_packets)).map_err(|e| {
             error!("Failed to send {:?}", e);

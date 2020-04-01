@@ -5,7 +5,7 @@ edition = "2018"
 # When releasing to crates.io:
 # - Update doc URL.
 # - Create "vX.Y.Z" git tag.
-version = "0.9.0"
+version = "0.10.0"
 license = "MIT"
 readme = "README.md"
 description = """
@@ -19,12 +19,11 @@ repository = "https://github.com/dbcfd/packet-ipc"
 [dependencies]
 bincode = "1"
 crossbeam-channel = "0.3"
-failure = "0.1"
-failure_derive = "0.1"
+failure = { version = "0.1", features = ["derive"] }
 ipc-channel = "0.11"
 log = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11"
 
 [dev-dependencies]
-env_logger = "0.6"
+env_logger = "0.7"

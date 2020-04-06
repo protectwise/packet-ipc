@@ -40,6 +40,10 @@ impl Packet {
     pub fn new(ts: std::time::SystemTime, data: Vec<u8>) -> Packet {
         Packet { ts, data }
     }
+
+    pub fn into_data(self) -> Vec<u8> {
+        self.data
+    }
 }
 
 impl AsIpcPacket for Packet {

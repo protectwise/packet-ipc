@@ -5,16 +5,16 @@ edition = "2018"
 # When releasing to crates.io:
 # - Update doc URL.
 # - Create "vX.Y.Z" git tag.
-version = "0.10.0"
+version = "0.11.0"
 license = "MIT"
 readme = "README.md"
 description = """
 Share packets between services using servo ipc
 """
-authors = ["Danny Browning <bdbrowning2@gmail.com>"]
+authors = ["dbcfd <bdbrowning2@gmail.com>"]
 categories = ["asynchronous", "network-programming"]
 documentation = "https://docs.rs/packet-ipc/"
-repository = "https://github.com/dbcfd/packet-ipc"
+repository = "https://github.com/protectwise/packet-ipc"
 
 [dependencies]
 bincode = "1"

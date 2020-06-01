@@ -5,7 +5,7 @@ edition = "2018"
 # When releasing to crates.io:
 # - Update doc URL.
 # - Create "vX.Y.Z" git tag.
-version = "0.11.0"
+version = "0.12.0"
 license = "MIT"
 readme = "README.md"
 description = """
@@ -19,11 +19,11 @@ repository = "https://github.com/protectwise/packet-ipc"
 [dependencies]
 bincode = "1"
 crossbeam-channel = "0.3"
-failure = { version = "0.1", features = ["derive"] }
 ipc-channel = "0.11"
 log = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11"
+thiserror = "1"
 
 [dev-dependencies]
 env_logger = "0.7"

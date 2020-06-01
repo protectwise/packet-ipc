@@ -1,17 +1,17 @@
-use failure::Fail;
+use thiserror::{Error as ThisError};
 
-#[derive(Debug, Fail)]
+#[derive(Debug, ThisError)]
 pub enum Error {
-    #[fail(display = "IO Error")]
-    Io(#[fail(cause)] std::io::Error),
-    #[fail(display = "Null pointer when dealing with ffi")]
-    Ffi(#[fail(cause)] std::ffi::NulError),
-    #[fail(display = "Utf8 conversion error")]
-    Utf8(#[fail(cause)] std::str::Utf8Error),
-    #[fail(display = "Error during bincode")]
-    Bincode(#[fail(cause)] bincode::Error),
-    #[fail(display = "Error receiving")]
-    Recv(#[fail(cause)] crossbeam_channel::RecvError),
+    #[error("IO Error: {0:?}")]
+    Io(#[from] std::io::Error),
+    #[error("Null pointer when dealing with ffi: {0:?}")]
+    Ffi(#[from] std::ffi::NulError),
+    #[error("Utf8 conversion error: {0:?}")]
+    Utf8(#[from] std::str::Utf8Error),
+    #[error("Error during bincode: {0:?}")]
+    Bincode(#[from] bincode::Error),
+    #[error("Error receiving: {0:?}")]
+    Recv(#[from] crossbeam_channel::RecvError),
 }
 
 unsafe impl Sync for Error {}

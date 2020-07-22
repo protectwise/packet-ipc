@@ -17,6 +17,7 @@ documentation = "https://docs.rs/packet-ipc/"
 repository = "https://github.com/protectwise/packet-ipc"
 
 [dependencies]
+blocking = "0.5"
 bincode = "1"
 crossbeam-channel = "0.3"
 ipc-channel = "0.14"

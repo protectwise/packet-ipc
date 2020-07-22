@@ -4,20 +4,20 @@ use crate::packet::{AsIpcPacket, IpcPacket};
 use ipc_channel::ipc::{IpcOneShotServer, IpcSender};
 use log::*;
 
-pub type SenderMessage<'a> = Option<Vec<IpcPacket<'a>>>;
-pub type Sender<'a> = IpcSender<SenderMessage<'a>>;
+pub type SenderMessage = Option<Vec<IpcPacket>>;
+pub type Sender = IpcSender<SenderMessage>;
 
-pub struct Server<'a> {
-    server: IpcOneShotServer<Sender<'a>>,
+pub struct Server {
+    server: IpcOneShotServer<Sender>,
     name: String,
 }
 
-impl<'a> Server<'a> {
+impl Server {
     pub fn name(&self) -> &String {
         &self.name
     }
 
-    pub fn new() -> Result<Server<'a>, Error> {
+    pub fn new() -> Result<Server, Error> {
         let (server, server_name) = IpcOneShotServer::new().map_err(Error::Io)?;
 
         Ok(Server {
@@ -26,7 +26,7 @@ impl<'a> Server<'a> {
         })
     }
 
-    pub fn accept(self) -> Result<ConnectedIpc<'a>, Error> {
+    pub fn accept(self) -> Result<ConnectedIpc, Error> {
         let (_, tx) = self.server.accept().map_err(Error::Bincode)?;
 
         info!("Accepted connection from {:?}", tx);
@@ -35,12 +35,12 @@ impl<'a> Server<'a> {
     }
 }
 
-pub struct ConnectedIpc<'a> {
-    connection: Sender<'a>,
+pub struct ConnectedIpc {
+    connection: Sender,
 }
 
-impl<'a> ConnectedIpc<'a> {
-    pub fn send<T: AsIpcPacket>(&'a self, packets: &'a [T]) -> Result<(), Error> {
+impl ConnectedIpc {
+    pub fn send<T: AsIpcPacket>(&self, packets: Vec<T>) -> Result<(), Error> {
         let ipc_packets: Vec<_> = packets.iter().map(IpcPacket::from).collect();
         self.connection.send(Some(ipc_packets)).map_err(|e| {
             error!("Failed to send {:?}", e);

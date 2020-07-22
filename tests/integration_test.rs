@@ -1,4 +1,5 @@
 use packet_ipc::{AsIpcPacket, Client, Error, IpcPacket, Packet, Server};
+use tokio_test::block_on;
 
 #[test]
 fn test_roundtrip() {
@@ -45,9 +46,9 @@ fn test_packet_receive() {
     });
 
     let mut server_tx = server.accept().expect("Failed to accept connection");
-
+    block_on(
     server_tx
-        .send(&vec![Packet::new(std::time::SystemTime::now(), vec![3u8])])
+        .send(vec![Packet::new(std::time::SystemTime::now(), vec![3u8])]))
         .expect("Failed to send");
 
     server_tx.close().expect("Failed to close");
@@ -86,11 +87,11 @@ fn test_multiple_packet_receive() {
 
     let mut server_tx = server.accept().expect("Failed to accept connection");
 
-    server_tx
-        .send(&vec![Packet::new(std::time::SystemTime::now(), vec![3u8])])
+    block_on(server_tx
+        .send(vec![Packet::new(std::time::SystemTime::now(), vec![3u8])]))
         .expect("Failed to send");
-    server_tx
-        .send(&vec![Packet::new(std::time::SystemTime::now(), vec![4u8])])
+    block_on(server_tx
+        .send(vec![Packet::new(std::time::SystemTime::now(), vec![4u8])]))
         .expect("Failed to send");
 
     server_tx.close().expect("Failed to close");

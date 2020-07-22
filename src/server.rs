@@ -56,8 +56,7 @@ impl ConnectedIpc {
             sender.send(Some(ipc_packets)).map_err(|e| {
                 error!("Failed to send {:?}", e);
                 Error::Bincode(e)
-            });
-            Ok(())
+            })
         }).await
 
     }

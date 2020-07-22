@@ -2,18 +2,18 @@ use serde::{Deserialize, Serialize};
 
 pub trait AsIpcPacket {
     fn timestamp(&self) -> &std::time::SystemTime;
-    fn data(&self) -> &[u8];
+    fn data(&self) -> Vec<u8>;
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct IpcPacket<'a> {
+pub struct IpcPacket {
     timestamp: std::time::SystemTime,
     #[serde(with = "serde_bytes")]
-    data: &'a [u8],
+    data: Vec<u8>,
 }
 
-impl<'a, T: AsIpcPacket> From<&'a T> for IpcPacket<'a> {
-    fn from(v: &'a T) -> Self {
+impl<T: AsIpcPacket> From<&T> for IpcPacket {
+    fn from(v: &T) -> Self {
         IpcPacket {
             timestamp: v.timestamp().clone(),
             data: v.data(),
@@ -21,8 +21,8 @@ impl<'a, T: AsIpcPacket> From<&'a T> for IpcPacket<'a> {
     }
 }
 
-impl<'a> From<IpcPacket<'a>> for Packet {
-    fn from(v: IpcPacket<'a>) -> Self {
+impl From<IpcPacket> for Packet {
+    fn from(v: IpcPacket) -> Self {
         Packet {
             ts: v.timestamp.clone(),
             data: v.data.to_vec(),
@@ -50,8 +50,8 @@ impl AsIpcPacket for Packet {
     fn timestamp(&self) -> &std::time::SystemTime {
         &self.ts
     }
-    fn data(&self) -> &[u8] {
-        self.data.as_ref()
+    fn data(&self) -> Vec<u8> {
+        self.data.clone()
     }
 }
 

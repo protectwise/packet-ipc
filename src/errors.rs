@@ -12,6 +12,8 @@ pub enum Error {
     Bincode(#[from] bincode::Error),
     #[error("Error receiving: {0:?}")]
     Recv(#[from] crossbeam_channel::RecvError),
+    #[error("Mutex was poisoned")]
+    Mutex(),
 }
 
 unsafe impl Sync for Error {}

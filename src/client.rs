@@ -53,7 +53,10 @@ impl Client {
         Self::new_with_size(server_name, None)
     }
     /// new client with a choice of bounded or unbounded based on the channel_size bening Some(size) or None
-    pub fn new_with_size(server_name: String, channel_size: Option<usize>) -> Result<Client, Error> {
+    pub fn new_with_size(
+        server_name: String,
+        channel_size: Option<usize>,
+    ) -> Result<Client, Error> {
         let (ipc_tx, ipc_rx) = ipc::channel::<IpcSender<Vec<IpcPacket>>>().map_err(Error::Io)?;
         let server_sender = IpcSender::connect(server_name).map_err(Error::Io)?;
         server_sender.send(ipc_tx).map_err(Error::Bincode)?;

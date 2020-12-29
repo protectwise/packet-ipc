@@ -5,7 +5,7 @@ edition = "2018"
 # When releasing to crates.io:
 # - Update doc URL.
 # - Create "vX.Y.Z" git tag.
-version = "0.14.0"
+version = "0.15.0"
 license = "MIT"
 readme = "README.md"
 description = """

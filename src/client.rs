@@ -48,7 +48,12 @@ fn process_selection_result(
 }
 
 impl Client {
+    /// Uses a unbounded channel to transfer data.
     pub fn new(server_name: String) -> Result<Client, Error> {
+        Self::new_with_size(server_name, None)
+    }
+    /// new client with a choice of bounded or unbounded based on the channel_size bening Some(size) or None
+    pub fn new_with_size(server_name: String, channel_size: Option<usize>) -> Result<Client, Error> {
         let (ipc_tx, ipc_rx) = ipc::channel::<IpcSender<Vec<IpcPacket>>>().map_err(Error::Io)?;
         let server_sender = IpcSender::connect(server_name).map_err(Error::Io)?;
         server_sender.send(ipc_tx).map_err(Error::Bincode)?;
@@ -56,7 +61,10 @@ impl Client {
         let mut receiver = IpcReceiverSet::new().map_err(Error::Io)?;
         receiver.add_opaque(ipc_rx.to_opaque()).map_err(Error::Io)?;
 
-        let (msg_tx, msg_rx) = crossbeam_channel::unbounded();
+        let (msg_tx, msg_rx) = match channel_size {
+            Some(channel_size) => crossbeam_channel::bounded(channel_size),
+            None => crossbeam_channel::unbounded(),
+        };
 
         std::thread::spawn(move || {
             let mut closed = false;

@@ -27,6 +27,23 @@ fn test_connect_to_server() {
 }
 
 #[test]
+fn test_connect_to_server_bounded() {
+    let _ = env_logger::try_init();
+
+    let server = Server::new().expect("Failed to create server");
+    let server_name = server.name().clone();
+
+    let client_thread = std::thread::spawn(move || Client::new_with_size(server_name, Some(1)));
+
+    let _server_tx = server.accept().expect("Failed to accept connection");
+
+    client_thread
+        .join()
+        .expect("Failed to join")
+        .expect("Failed to connect client");
+}
+
+#[test]
 fn test_packet_receive() {
     let _ = env_logger::try_init();
 

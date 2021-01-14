@@ -1,7 +1,7 @@
 use crate::errors::Error;
 
 use crate::packet::{AsIpcPacket, IpcPacket};
-use ipc_channel::ipc::{IpcOneShotServer, IpcSender, IpcBytesSender};
+use ipc_channel::ipc::{IpcOneShotServer, IpcBytesSender};
 use log::*;
 
 //pub type SenderMessage<'a> = Option<Vec<IpcPacket<'a>>>;

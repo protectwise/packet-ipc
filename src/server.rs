@@ -1,23 +1,23 @@
 use crate::errors::Error;
 
 use crate::packet::{AsIpcPacket, IpcPacket};
-use ipc_channel::ipc::{IpcOneShotServer, IpcSender};
+use ipc_channel::ipc::{IpcOneShotServer, IpcBytesSender};
 use log::*;
 
-pub type SenderMessage<'a> = Option<Vec<IpcPacket<'a>>>;
-pub type Sender<'a> = IpcSender<SenderMessage<'a>>;
+//pub type SenderMessage<'a> = Option<Vec<IpcPacket<'a>>>;
+pub type Sender = IpcBytesSender;
 
-pub struct Server<'a> {
-    server: IpcOneShotServer<Sender<'a>>,
+pub struct Server {
+    server: IpcOneShotServer<Sender>,
     name: String,
 }
 
-impl<'a> Server<'a> {
+impl Server {
     pub fn name(&self) -> &String {
         &self.name
     }
 
-    pub fn new() -> Result<Server<'a>, Error> {
+    pub fn new() -> Result<Server, Error> {
         let (server, server_name) = IpcOneShotServer::new().map_err(Error::Io)?;
 
         Ok(Server {
@@ -26,7 +26,7 @@ impl<'a> Server<'a> {
         })
     }
 
-    pub fn accept(self) -> Result<ConnectedIpc<'a>, Error> {
+    pub fn accept(self) -> Result<ConnectedIpc, Error> {
         let (_, tx) = self.server.accept().map_err(Error::Bincode)?;
 
         info!("Accepted connection from {:?}", tx);
@@ -35,21 +35,30 @@ impl<'a> Server<'a> {
     }
 }
 
-pub struct ConnectedIpc<'a> {
-    connection: Sender<'a>,
+pub struct ConnectedIpc {
+    connection: Sender,
 }
 
-impl<'a> ConnectedIpc<'a> {
-    pub fn send<T: AsIpcPacket>(&'a self, packets: &'a [T]) -> Result<(), Error> {
-        let ipc_packets: Vec<_> = packets.iter().map(IpcPacket::from).collect();
-        self.connection.send(Some(ipc_packets)).map_err(|e| {
+impl ConnectedIpc {
+    pub fn send<T: AsIpcPacket>(&self, packets: &[T]) -> Result<(), Error> {
+        let ipc_packets: Vec<_> = packets
+            .iter()
+            .map(IpcPacket::from)
+            .collect();
+        let ipc_packets = Some(ipc_packets);
+        let ipc_packets_ser = bincode::serialize(&ipc_packets)
+            .map_err(Error::Bincode)?;
+        self.connection.send(&ipc_packets_ser).map_err(|e| {
             error!("Failed to send {:?}", e);
-            Error::Bincode(e)
+            Error::Io(e)
         })
     }
 
     pub fn close(&mut self) -> Result<(), Error> {
-        self.connection.send(None).map_err(Error::Bincode)?;
+        let none: Option<Vec<IpcPacket>> = None;
+        let ser = bincode::serialize(&none).map_err(Error::Bincode)?;
+
+        self.connection.send(&ser).map_err(Error::Io)?;
         Ok(())
     }
 }
